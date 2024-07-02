@@ -414,11 +414,13 @@ def reset_framerange(fps=True, frame_range=True):
             log.warning("No edit information found for '%s'", folder_path)
             return
 
-        handle_start = folder_attributes.get("handleStart", 0)
-        handle_end = folder_attributes.get("handleEnd", 0)
-
-        frame_start -= int(handle_start)
-        frame_end += int(handle_end)
+        # COLORBLEED Edit: Do not include handles
+        # TODO(Colorbleed): Make this a project setting
+        # handle_start = folder_attributes.get("handleStart", 0)
+        # handle_end = folder_attributes.get("handleEnd", 0)
+        #
+        # frame_start -= int(handle_start)
+        # frame_end += int(handle_end)
 
         # Set frame range and FPS
         hou.playbar.setFrameRange(frame_start, frame_end)
@@ -505,7 +507,7 @@ def get_frame_data(node, log=None):
         data["frameEndHandle"] = hou.intFrame()
         data["byFrameStep"] = 1.0
 
-        log.info(
+        log.debug(
             "Node '{}' has 'Render current frame' set.\n"
             "Folder Handles are ignored.\n"
             "frameStart and frameEnd are set to the "

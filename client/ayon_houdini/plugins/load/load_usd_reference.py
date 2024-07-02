@@ -11,10 +11,7 @@ from ayon_houdini.api import (
 class USDReferenceLoader(plugin.HoudiniLoader):
     """Reference USD file in Solaris"""
 
-    product_types = {
-        "usd",
-        "usdCamera",
-    }
+    product_types = {"*"}
     label = "Reference USD"
     representations = {"usd", "usda", "usdlc", "usdnc", "abc"}
     order = -8
@@ -40,7 +37,11 @@ class USDReferenceLoader(plugin.HoudiniLoader):
         node_name = "{}_{}".format(namespace, name) if namespace else name
 
         # Create USD reference
-        container = stage.createNode("reference", node_name=node_name)
+        network = lib.find_active_network(
+            category=hou.lopNodeTypeCategory(),
+            default="/stage"
+        )
+        container = network.createNode("reference", node_name=node_name)
         container.setParms({"filepath1": file_path})
         container.moveToGoodPosition()
 

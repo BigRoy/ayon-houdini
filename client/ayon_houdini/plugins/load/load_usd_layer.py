@@ -11,13 +11,10 @@ from ayon_houdini.api import (
 class USDSublayerLoader(plugin.HoudiniLoader):
     """Sublayer USD file in Solaris"""
 
-    product_types = {
-        "usd",
-        "usdCamera",
-    }
+    product_types = {"*"}
     label = "Sublayer USD"
     representations = {"usd", "usda", "usdlc", "usdnc", "abc"}
-    order = 1
+    order = -7
 
     icon = "code-fork"
     color = "orange"
@@ -40,7 +37,11 @@ class USDSublayerLoader(plugin.HoudiniLoader):
         node_name = "{}_{}".format(namespace, name) if namespace else name
 
         # Create USD reference
-        container = stage.createNode("sublayer", node_name=node_name)
+        network = lib.find_active_network(
+            category=hou.lopNodeTypeCategory(),
+            default="/stage"
+        )
+        container = network.createNode("sublayer", node_name=node_name)
         container.setParms({"filepath1": file_path})
         container.moveToGoodPosition()
 
