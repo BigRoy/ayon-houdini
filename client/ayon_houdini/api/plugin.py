@@ -142,6 +142,7 @@ class HoudiniCreator(Creator, HoudiniCreatorBase):
                 product_name,
                 instance_data,
                 self)
+            self.read_custom_data(instance)
             self._add_instance_to_context(instance)
             self.imprint(instance_node, instance.data_to_store())
 
@@ -192,6 +193,7 @@ class HoudiniCreator(Creator, HoudiniCreatorBase):
             created_instance = CreatedInstance.from_existing(
                 node_data, self
             )
+            self.read_custom_data(created_instance)
             self._add_instance_to_context(created_instance)
 
     def update_instances(self, update_list):
@@ -216,6 +218,7 @@ class HoudiniCreator(Creator, HoudiniCreatorBase):
         values.pop("instance_node", None)
         values.pop("instance_id", None)
         values.pop("families", None)
+        values.pop("label", None)  # do not imprint label, assume it's computed
         imprint(node, values, update=update)
 
     def remove_instances(self, instances):
@@ -311,6 +314,39 @@ class HoudiniCreator(Creator, HoudiniCreatorBase):
 
         for key, value in settings.items():
             setattr(self, key, value)
+
+    # region Colorbleed-edit: Set custom label if not current folder path
+    def read_custom_data(self, instance: CreatedInstance):
+        """Allow overriding reading of custom additional data."""
+        # Add the folder path to the instance name as a label
+        # if it does not match the current context to identify
+        # it is publishing elsewhere. Especially useful with multi-shot
+        # workflows
+        folder_path = instance.get("folderPath", "")
+        if folder_path != self.create_context.get_current_folder_path():
+            product_name = instance.get("productName", "")
+            instance["label"] = f"{product_name} ({folder_path})"
+
+    def register_callbacks(self):
+        """Register Houdini specific callbacks for context creation."""
+        self.create_context.add_value_changed_callback(
+            self._on_value_changed
+        )
+
+    def _on_value_changed(self, event):
+        """Update the label of the instance on folder path changes"""
+        for change in event.data["changes"]:
+            if not change.get("instance"):
+                continue
+
+            instance: CreatedInstance = change["instance"]
+            if instance.creator_identifier != self.identifier:
+                continue
+
+            if "folderPath" not in change["changes"]:
+                continue
+            self.read_custom_data(instance)
+    # endregion
 
 
 class HoudiniLoader(load.LoaderPlugin):
