@@ -1,9 +1,9 @@
 import os
 import pyblish.api
 
-from ayon_core.pipeline import publish
+from ayon_core.pipeline import publish, PublishError
 from ayon_houdini.api import plugin
-from ayon_houdini.api.lib import splitext
+from ayon_houdini.api.lib import splitext, format_as_collections
 
 
 class ExtractROP(plugin.HoudiniExtractorPlugin):
@@ -30,9 +30,10 @@ class ExtractROP(plugin.HoudiniExtractorPlugin):
         )
         ext = ext.lstrip(".")
 
-        # Value `local` is used as a fallback if the `render_target` key is missing.
-        # This key might be absent because render targets are not yet implemented
-        #  for all product types that use this plugin.
+        # Value `local` is used as a fallback if the `render_target`
+        #   key is missing.
+        # This key might be absent because render targets are not
+        #   yet implemented for all product types that use this plugin.
         if creator_attribute.get("render_target", "local") == "local":
             self.render_rop(instance)
         self.validate_expected_frames(instance)
@@ -68,12 +69,23 @@ class ExtractROP(plugin.HoudiniExtractorPlugin):
             # Single frame
             filenames = [filenames]
 
-        missing_filenames = [
-            filename for filename in filenames
-            if not os.path.isfile(os.path.join(staging_dir, filename))
-        ]
-        if missing_filenames:
-            raise RuntimeError(f"Missing frames: {missing_filenames}")
+        missing_frames = []
+        for filename in filenames:
+            filename = os.path.join(staging_dir, filename)
+            if not os.path.isfile(filename):
+                missing_frames.append(filename)
+
+        if missing_frames:
+            # Combine collections for simpler logs of missing files
+            missing_frames  = format_as_collections(missing_frames)
+            missing_frames = "\n ".join(
+                f"- {sequence}" for sequence in missing_frames
+            )
+            raise PublishError(
+                "Failed to complete render extraction.\n"
+                "Please render any missing output files.",
+                detail=f"Missing output files: \n {missing_frames}"
+            )
 
     def update_representation_data(self,
                                    instance: pyblish.api.Instance,

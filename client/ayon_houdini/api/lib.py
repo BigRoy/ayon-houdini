@@ -5,6 +5,8 @@ import errno
 import re
 import logging
 import json
+import clique
+from functools import lru_cache
 from contextlib import contextmanager
 
 import six
@@ -905,7 +907,7 @@ def set_review_color_space(node, review_color_space="", log=None):
     If review_color_space is empty, a default colorspace corresponding to
     the display & view of the current Houdini session will be used.
 
-    Note: 
+    Note:
         This function expects nodes of type `opengl` or `flipbook`.
 
     Args:
@@ -1542,7 +1544,8 @@ def show_node_parmeditor(node):
         node (hou.Node): node instance
     """
 
-    # Check if there's a floating parameter editor pane with its node set to the specified node.
+    # Check if there's a floating parameter editor pane with its node
+    #   set to the specified node.
     for tab in hou.ui.paneTabs():
         if (
             tab.type() == hou.paneTabType.Parm
@@ -1568,7 +1571,7 @@ def connect_file_parm_to_loader(file_parm: hou.Parm):
     """Connect the given file parm to a generic loader.
     If the parm is already connected to a generic loader node, go to that node.
     """
-    
+
     from .pipeline import get_or_create_avalon_container
 
     referenced_parm = file_parm.getReferencedParm()
@@ -1582,7 +1585,7 @@ def connect_file_parm_to_loader(file_parm: hou.Parm):
 
     # Create a generic loader node and reference its file parm
     main_container = get_or_create_avalon_container()
-    
+
     node_name = f"{file_parm.node().name()}_{file_parm.name()}_loader"
     load_node = main_container.createNode("ayon::generic_loader",
                                           node_name=node_name)
@@ -1594,6 +1597,35 @@ def connect_file_parm_to_loader(file_parm: hou.Parm):
     expression = rf'chs\(\"{relative_path}/file\"\)'  # noqa
     hou.hscript(
         'opparm -r'
-        f' {file_parm.node().path()} {file_parm.name()} \`{expression}\`'
+        f' {file_parm.node().path()} {file_parm.name()} \\`{expression}\\`'
     )
     show_node_parmeditor(load_node)
+
+
+@lru_cache(1)
+def is_version_up_workfile_menu_enabled() -> bool:
+    """Check if the 'Version Up Workfile' menu should be enabled.
+
+    It's cached because we don't care about updating the menu during the
+    current Houdini session and this allows us to avoid re-querying the
+    project settings each time.
+
+    """
+    project_settings = get_current_project_settings()
+    if project_settings["core"]["tools"]["ayon_menu"].get(
+        "version_up_current_workfile"
+    ):
+        return True
+    return False
+
+
+def format_as_collections(
+    files: list[str],
+    pattern: str = "{head}{padding}{tail} [{ranges}]"
+) -> list[str]:
+    """Return list of files as formatted sequence collections."""
+
+    collections, remainder = clique.assemble(files)
+    result = [collection.format(pattern) for collection in collections]
+    result.extend(remainder)
+    return result

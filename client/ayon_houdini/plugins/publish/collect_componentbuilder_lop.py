@@ -1,21 +1,28 @@
 import os
+from typing import List, Tuple
+from pathlib import Path
 
 import pyblish.api
 
-from ayon_core.pipeline import AYONPyblishPluginMixin
+from ayon_core.pipeline import AYONPyblishPluginMixin, PublishError
 from ayon_houdini.api import plugin
 
-from pxr import Sdf, Usd, UsdUtils
+import hou
+from pxr import Sdf, UsdUtils
 
-class Resource:
-    source: str
-    files: str
+
+def compute_all_dependencies(
+        filepath: str) -> Tuple[list[Sdf.Layer], list[str], list[str]]:
+    """Compute all dependencies for the given USD file."""
+    # Only separated here for better type hints on returned values
+    return UsdUtils.ComputeAllDependencies(filepath)
 
 
 class CollectComponentBuilderLOPs(plugin.HoudiniInstancePlugin,
                                   AYONPyblishPluginMixin):
 
-    order = pyblish.api.CollectorOrder + 0.05
+    # Run after `CollectResourcesPath`
+    order = pyblish.api.CollectorOrder + 0.496
     families = ["componentbuilder"]
     label = "Collect Componentbuilder LOPs"
 
@@ -23,20 +30,25 @@ class CollectComponentBuilderLOPs(plugin.HoudiniInstancePlugin,
 
         node = hou.node(instance.data["instance_node"])
 
-        # Use existing files for now
-        filepath = node.evalParm("lopoutput")
-
         # Render the component builder LOPs
         # TODO: Do we want this? or use existing frames? Usually a Collector
         #  should not 'extract' but in this case we need the resulting USD
         #  file.
-        # node.parm("execute").pressButton()
+        node.cook(force=True)  # required to clear existing errors
+        node.parm("execute").pressButton()
 
-        # Compose the resulting stage
-        stage = Usd.Stage.Open(filepath)
-        instance.data["stage"] = stage
+        errors = node.errors()
+        if errors:
+            for error in errors:
+                self.log.error(error)
+            raise PublishError(
+                f"Failed to save to disk '{node.path()}'. "
+                "Please fix your scene to ensure it renders correctly "
+                "and re-publish. Check the log for more information."
+            )
 
         # Define the main asset usd file
+        filepath = node.evalParm("lopoutput")
         representations = instance.data.setdefault("representations", [])
         representations.append({
             "name": "usd",
@@ -46,18 +58,31 @@ class CollectComponentBuilderLOPs(plugin.HoudiniInstancePlugin,
         })
 
         # Get all its files and dependencies
-        layers, assets, unresolved_paths = UsdUtils.ComputeAllDependencies(
-            filepath)
-        layers: list[Sdf.Layer]
-        assets: list[str]
-        unresolved_paths: list[str]
-
         # TODO: Ignore any files that are not 'relative' to the USD file
+        layers, assets, unresolved_paths = compute_all_dependencies(filepath)
+        paths: List[str] = []
+        paths.extend(layer.realPath for layer in layers)
+        paths.extend(assets)
+
+        # Skip unresolved paths, but warn about them
+        for unresolved in unresolved_paths:
+            self.log.warning(f"Cannot be resolved: {unresolved}")
+
+        self.log.debug(f"Collecting USD: {filepath}")
+        src_root_dir = os.path.dirname(filepath)
+
+        # Used to compare resolved paths against
+        filepath = Path(filepath)
 
         # We keep the relative paths to the USD file
         transfers = instance.data.setdefault("transfers", [])
         publish_root = instance.data["publishDir"]
-        for layer in layers:
-            src = layer.realPath
-            dest = os.path.relpath(layer.realPath, publish_root)
+        for src in paths:
+
+            if filepath == Path(src):
+                continue
+
+            relative_path = os.path.relpath(src, start=src_root_dir)
+            self.log.debug(f"Collected dependency: {relative_path}")
+            dest = os.path.normpath(os.path.join(publish_root, relative_path))
             transfers.append((src, dest))
