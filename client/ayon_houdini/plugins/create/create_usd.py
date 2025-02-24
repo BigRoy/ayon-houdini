@@ -17,10 +17,10 @@ class CreateUSD(plugin.HoudiniCreator):
     enabled = False
     description = "Create USD"
 
-    additional_parameters = {}
-
     # Default render target
     render_target = "local"
+
+    additional_parameters = {}
 
     def create(self, product_name, instance_data, pre_create_data):
 
@@ -85,7 +85,7 @@ class CreateUSD(plugin.HoudiniCreator):
 
 
 class CreateUSDModel(CreateUSD):
-    identifier = "io.openpype.creators.houdini.model.usd"
+    identifier = "io.ayon.creators.houdini.model.usd"
     label = "USD Model"
     product_type = "model"
     enabled = True
@@ -97,9 +97,39 @@ class CreateUSDModel(CreateUSD):
         "defaultprim": '/`strsplit(chs("folderPath"), "/", -1)`',
     }
 
+    def get_detail_description(self):
+        return inspect.cleandoc("""Publish model in USD data.
+
+        From the Houdini Solaris context (LOPs) this will publish a static
+        model. Usually used for publishing geometry into a USD asset using
+        the USD contribution workflow.
+        """)
+
+
+class CreateUSDAssembly(CreateUSD):
+    identifier = "io.ayon.creators.houdini.assembly.usd"
+    label = "USD Assembly"
+    product_type = "assembly"
+    enabled = True
+    description = "Create USD assembly"
+
+    additional_parameters = {
+        # Set the 'default prim' by default to the folder name being
+        # published to
+        "defaultprim": '/`strsplit(chs("folderPath"), "/", -1)`',
+    }
+
+    def get_detail_description(self):
+        return inspect.cleandoc("""Publish assembly in USD data.
+
+        From the Houdini Solaris context (LOPs) this will publish an assembly
+        product. Usually used for publishing multiple referenced USD assets
+        grouped together and positioned to make an assembled asset.
+        """)
+
 
 class CreateUSDGroom(CreateUSD):
-    identifier = "io.openpype.creators.houdini.groom.usd"
+    identifier = "io.ayon.creators.houdini.groom.usd"
     label = "USD Groom"
     product_type = "groom"
     icon = "scissors"
@@ -111,6 +141,15 @@ class CreateUSDGroom(CreateUSD):
         # published to
         "defaultprim": '/`strsplit(chs("folderPath"), "/", -1)`',
     }
+
+    def get_detail_description(self):
+        return inspect.cleandoc("""Publish groom in USD data.
+
+        From the Houdini Solaris context (LOPs) this will usually publish the
+        static groom of fur and or hairs. Usually used to define the base
+        groom for a character and then used in the `look` to build the final
+        materials.
+        """)
 
 
 class CreateUSDLook(CreateUSD):
@@ -137,7 +176,6 @@ class CreateUSDLook(CreateUSD):
 
         Any assets used by the look will be relatively remapped to the USD
         file and integrated into the publish as `resources`.
-
         """)
 
     def get_publish_families(self):

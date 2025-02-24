@@ -1,9 +1,9 @@
-# Dialog script for ayon::lop_import::1.0 automatically generated
+# Dialog script for ayon::generic_loader::1.0 automatically generated
 
 {
-    name	ayon::lop_import::1.0
-    script	load_asset::1.0
-    label	"AYON Load Asset"
+    name	ayon::generic_loader::1.0
+    script	ayon::generic_loader::1.0
+    label	"AYON Generic Loader"
 
     help {
 	""
@@ -21,7 +21,7 @@
         parmtag { "script_callback_language" "python" }
 
         parm {
-            name    "assetinfo"
+            name    "assetinfo_labelparm"
             label   "Heading"
             type    label
             default { "Choose Product" }
@@ -32,7 +32,6 @@
             label   "Project"
             type    string
             default { "$AYON_PROJECT_NAME" }
-            parmtag { "autoscope" "0000000000000000" }
             parmtag { "script_action" "from ayon_houdini.api.hda_utils import select_folder_path;select_folder_path(kwargs['node'])" }
             parmtag { "script_action_icon" "BUTTONS_reselect" }
         }
@@ -41,7 +40,6 @@
             label   "Folder Path"
             type    string
             default { "$AYON_FOLDER_PATH" }
-            parmtag { "autoscope" "0000000000000000" }
             parmtag { "script_action" "from ayon_houdini.api.hda_utils import select_folder_path;select_folder_path(kwargs['node'])" }
             parmtag { "script_action_icon" "BUTTONS_reselect" }
         }
@@ -50,16 +48,15 @@
             label   "Folder Name"
             type    label
             default { "`strsplit(chs(\"folder_path\"), \"/\", -1)`" }
-            parmtag { "autoscope" "0000000000000000" }
         }
         parm {
             name    "product_name"
             label   "Product"
             type    string
-            default { "usdAsset" }
-            parmtag { "autoscope" "0000000000000000" }
+            default { "" }
             parmtag { "script_action" "from ayon_houdini.api.hda_utils import select_product_name;select_product_name(kwargs['node'])" }
             parmtag { "script_action_icon" "BUTTONS_reselect" }
+            parmtag { "script_callback" "hou.phm().set_to_latest_version(kwargs['node'])" }
             parmtag { "script_callback_language" "python" }
         }
         parm {
@@ -67,21 +64,53 @@
             label   "Version"
             type    string
             default { "" }
+            disablewhen "{ representation_old == \"\" }"
             menureplace {
-                [ "opmenu -l -a generic_loader version" ]
+                [ "versions = hou.phm().get_available_versions(kwargs['node'])" ]
+                [ "" ]
+                [ "result = []" ]
+                [ "for version in versions:" ]
+                [ "    result.append(str(version))" ]
+                [ "    result.append(f\"v{version:03d}\")" ]
+                [ "    " ]
+                [ "return result" ]
+                language python
             }
-            parmtag { "autoscope" "0000000000000000" }
             parmtag { "script_callback_language" "python" }
         }
         parm {
             name    "representation_name"
             label   "Representation"
             type    string
-            default { "usd" }
+            default { "" }
             menureplace {
-                [ "opmenu -l -a generic_loader representation_name" ]
+                [ "representations_names = hou.phm().get_available_representations(kwargs['node'])" ]
+                [ "" ]
+                [ "result = []" ]
+                [ "for name in representations_names:" ]
+                [ "    result.append(name)" ]
+                [ "    result.append(name)" ]
+                [ "    " ]
+                [ "return result" ]
+                language python
             }
-            parmtag { "autoscope" "0000000000000000" }
+            parmtag { "script_callback_language" "python" }
+        }
+        parm {
+            name    "enable_repre_filter"
+            label   "Enable Representation Filter"
+            type    toggle
+            default { "0" }
+            parmtag { "script_callback_language" "python" }
+        }
+        parm {
+            name    "representation_filter"
+            label   "Representation Filter"
+            type    string
+            default { "" }
+            help    "space separated list of representation names to filter to"
+            disablewhen "{ enable_repre_filter == 0 }"
+            hidewhen "{ enable_repre_filter == 0 }"
             parmtag { "script_callback_language" "python" }
         }
         parm {
@@ -90,7 +119,7 @@
             type    button
             default { "0" }
             help    "The load logic uses expressions that cache into the current session to avoid continuously requeryin the database. This clear that cache to enforce a full refresh of the expressions."
-            parmtag { "autoscope" "0000000000000000" }
+            parmtag { "script_callback" "hou.phm().expression_clear_cache()" }
             parmtag { "script_callback_language" "python" }
         }
         parm {
@@ -100,129 +129,19 @@
             default { "" }
         }
         parm {
-            name    "reload"
-            label   "Reload Files"
-            type    button
-            default { "0" }
-            parmtag { "autoscope" "0000000000000000" }
-            parmtag { "script_callback_language" "python" }
-        }
-        parm {
             name    "file"
             label   "File"
             type    string
             default { [ "from ayon_houdini.api import hda_utils\nreturn hda_utils.expression_get_representation_path()" python ] }
-            parmtag { "autoscope" "0000000000000000" }
             parmtag { "script_callback_language" "python" }
         }
         parm {
             name    "use_ayon_entity_uri"
             label   "Use AYON Entity URI"
             type    toggle
-            default { "off" }
-            help    "When enabled, loads the filepath using the AYON Entity URI instead of the resolved filepath."
-            parmtag { "autoscope" "0000000000000000" }
-            parmtag { "script_callback_language" "python" }
-        }
-        parm {
-            name    "primpath"
-            label   "Primitive Root"
-            type    string
-            joinnext
-            default { "`chs(\"folder_path\")`/$OS" }
-            menureplace {
-                [ "opmenu -l -a reference_character primpath1" ]
-            }
-            parmtag { "autoscope" "0000000000000000" }
-            parmtag { "script_action" "import loputils\nloputils.selectPrimsInParm(kwargs, False)" }
-            parmtag { "script_action_help" "Select a primitive in the Scene Viewer or Scene Graph Tree pane.\nCtrl-click to select using the primitive picker dialog.\nAlt-click to toggle movement of the display flag." }
-            parmtag { "script_action_icon" "BUTTONS_reselect" }
-            parmtag { "sidefx::usdpathtype" "prim" }
-        }
-        parm {
-            name    "primpath_presets"
-            label   "Presets"
-            type    button
-            nolabel
             default { "0" }
-            menu {
-                "`chs(\"folder_name\")`"        "Folder Name\n    (Use for \"Asset Build\" workflow)"
-                "`chs(\"folder_path\")`/$OS"    "Folder Path with Node Name\n    (Use for \"Shot\" or \"Scene Assembly\" workflow)"
-            }
-            parmtag { "script_callback" "parm = kwargs[\"node\"].parm(\"primpath\"); parm.revertToDefaults(); parm.set(kwargs[\"script_value\"])" }
-            parmtag { "script_callback_language" "python" }
+            help    "When enabled, loads the filepath using the AYON Entity URI instead of the resolved filepath."
         }
-        groupcollapsible {
-            name    "extra_options"
-            label   "Load Options"
-
-            parm {
-                name    "reftype"
-                label   "Reference Type"
-                type    string
-                default { "file" }
-                menu {
-                    "file"      "Reference File"
-                    "payload"   "Payload File"
-                }
-                parmtag { "autoscope" "0000000000000000" }
-                parmtag { "script_callback_language" "python" }
-            }
-            parm {
-                name    "instanceable"
-                label   "Make Instanceable"
-                type    toggle
-                default { "off" }
-                parmtag { "autoscope" "0000000000000000" }
-                parmtag { "script_callback_language" "python" }
-            }
-            parm {
-                name    "filerefprim"
-                label   "Reference Primitive"
-                type    string
-                default { "automaticPrim" }
-                hidewhen "{ reftype == prim } { reftype == inherit } { reftype == specialize }"
-                menu {
-                    "automaticPrim" "Reference Automatically Chosen Primitive"
-                    "defaultPrim"   "Reference Default Primitive"
-                    ""              "Reference Specific Primitive"
-                }
-                parmtag { "autoscope" "0000000000000000" }
-                parmtag { "script_callback_language" "python" }
-            }
-            parm {
-                name    "filerefprimpath"
-                label   "Reference Primitive Path"
-                type    string
-                default { "" }
-                disablewhen "{ filerefprim != \"\" reftype != prim reftype != inherit reftype != specialize }"
-                parmtag { "autoscope" "0000000000000000" }
-                parmtag { "script_action" "import loputils\nnode = kwargs['node']\nparm = kwargs['parmtuple'][0]\nreftype = node.evalParm(parm.name().replace(\n    'filerefprimpath', 'reftype'))\nif reftype in ('prim', 'inherit', 'specialize'):\n    prims = loputils.selectPrimsInParm(kwargs, True)\nelse:\n    parm = node.parm(parm.name().replace(\n       'filerefprimpath', 'filepath'))\n    prims = loputils.selectPrimsInParmFromFile(kwargs, False,\n        parm.evalAsString().strip('\\'\"'))" }
-                parmtag { "script_action_help" "Select a primitive from a primitive picker dialog." }
-                parmtag { "script_action_icon" "BUTTONS_reselect" }
-                parmtag { "sidefx::usdpathinput" "if(index(\"prim inherit specialize\", chs(\"reftype#\")) >= 0, 0, -1)" }
-                parmtag { "sidefx::usdpathtype" "prim" }
-            }
-            parm {
-                name    "timeoffset"
-                label   "Time Offset (in Frames)"
-                type    float
-                default { "0" }
-                range   { -100 100 }
-                parmtag { "autoscope" "0000000000000000" }
-                parmtag { "script_callback_language" "python" }
-            }
-            parm {
-                name    "timescale"
-                label   "Time Scale"
-                type    float
-                default { "1" }
-                range   { 0 5 }
-                parmtag { "autoscope" "0000000000000000" }
-                parmtag { "script_callback_language" "python" }
-            }
-        }
-
     }
 
     groupcollapsible {
@@ -315,7 +234,7 @@
             name    "loader"
             label   "Loader"
             type    label
-            default { "LOPLoadAssetLoader" }
+            default { "FilePathLoader" }
         }
         parm {
             name    "id"
@@ -328,8 +247,6 @@
             label   "Representation ID"
             type    string
             default { [ "from ayon_houdini.api import hda_utils\nreturn hda_utils.expression_get_representation_id()" python ] }
-            parmtag { "autoscope" "0000000000000000" }
-            parmtag { "script_callback_language" "python" }
         }
         parm {
             name    "version_name"
@@ -347,4 +264,12 @@
         }
     }
 
+    parm {
+        name    "nodes_referencing_file"
+        label   "Nodes Referencing File"
+        type    oplist
+        default { [ "\" \".join(parm.node().path() for parm in hou.parm('./file').parmsReferencingThis())" python ] }
+        parmtag { "oprelative" "/" }
+        parmtag { "script_callback_language" "python" }
+    }
 }
