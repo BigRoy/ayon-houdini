@@ -85,10 +85,10 @@ class CreateUSD(plugin.HoudiniCreator):
 
 class CreateUSDModel(CreateUSD):
     identifier = "io.ayon.creators.houdini.model.usd"
-    label = "USD Model"
+    label = "USD Asset Model"
     product_type = "model"
     enabled = True
-    description = "Create USD model"
+    description = "Create USD Asset model"
 
     additional_parameters = {
         # Set the 'default prim' by default to the folder name being
@@ -107,10 +107,10 @@ class CreateUSDModel(CreateUSD):
 
 class CreateUSDAssembly(CreateUSD):
     identifier = "io.ayon.creators.houdini.assembly.usd"
-    label = "USD Assembly"
+    label = "USD Asset Assembly"
     product_type = "assembly"
     enabled = True
-    description = "Create USD assembly"
+    description = "Create USD Asset assembly"
 
     additional_parameters = {
         # Set the 'default prim' by default to the folder name being
@@ -129,7 +129,7 @@ class CreateUSDAssembly(CreateUSD):
 
 class CreateUSDGroom(CreateUSD):
     identifier = "io.ayon.creators.houdini.groom.usd"
-    label = "USD Groom"
+    label = "USD Asset Groom"
     product_type = "groom"
     icon = "scissors"
     enabled = True
@@ -155,7 +155,7 @@ class CreateUSDLook(CreateUSD):
     """Universal Scene Description Look"""
 
     identifier = "io.openpype.creators.houdini.usd.look"
-    label = "USD Look"
+    label = "USD Asset Look"
     product_type = "look"
     icon = "paint-brush"
     enabled = True
